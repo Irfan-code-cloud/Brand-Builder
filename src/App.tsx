@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { GoogleGenAI } from '@google/genai';
 import { Loader2, Image as ImageIcon, Newspaper, Smartphone, MonitorUp, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Notice we completely removed the GoogleGenAI import and initialization from the frontend!
 
 type GeneratedImage = {
   id: string;
@@ -11,6 +10,22 @@ type GeneratedImage = {
   icon: React.ReactNode;
   dataUrl: string | null;
   loading: boolean;
+};
+
+// Helper function to call our secure Vercel proxy
+const generateSecurely = async (payload: any) => {
+  const response = await fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to generate content');
+  }
+  
+  return response.json();
 };
 
 export default function App() {
@@ -35,7 +50,9 @@ export default function App() {
 
     try {
       const basePrompt = `A clean, high-quality studio product photography shot of ${productDesc}. Professional lighting, neutral background. Absolutely no people, no hands, no human figures.`;
-      const baseResponse = await ai.models.generateContent({
+      
+      // 1. Call our secure proxy for the base image
+      const baseResponse = await generateSecurely({
         model: 'gemini-2.5-flash-image',
         contents: { parts: [{ text: basePrompt }] }
       });
@@ -76,7 +93,8 @@ export default function App() {
 
       for (const variation of variations) {
         try {
-          const varResponse = await ai.models.generateContent({
+          // 2. Call our secure proxy for the image variations
+          const varResponse = await generateSecurely({
             model: 'gemini-2.5-flash-image',
             contents: {
               parts: [
